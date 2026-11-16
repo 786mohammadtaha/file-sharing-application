@@ -19,20 +19,6 @@ const waitingRequests = new Set();
 let fileQueue = [];
 let queueVersion = 0;
 
-// function getLocalIpAddress() {
-//     const networkInterfaces = os.networkInterfaces();
-
-//     for (const interfaceList of Object.values(networkInterfaces)) {
-//         for (const network of interfaceList || []) {
-//             if (network.family === "IPv4" && !network.internal) {
-//                 return network.address;
-//             }
-//         }
-//     }
-
-//     return "127.0.0.1";
-// }
-
 function getLocalIpAddress() {
     return new Promise((resolve, reject) => {
         const socket = dgram.createSocket("udp4");
@@ -275,21 +261,6 @@ function registerRoutes() {
 
     app.get(`/${token}`, serveDashboard);
 
-    // app.get(`/${token}/qr`, async (request, response) => {
-    //     const localIpAddress = getLocalIpAddress();
-    //     const phoneUrl = `http://${localIpAddress}:${PORT}/${token}`;
-
-    //     try {
-    //         const qrCode = await QRCode.toBuffer(phoneUrl, {
-    //             type: "png"
-    //         });
-
-    //         response.type("png").send(qrCode);
-    //     } catch {
-    //         response.status(500).send("Could not generate QR code.");
-    //     }
-    // });
-
     app.get(`/${token}/qr`, async (request, response) => {
         const localIpAddress = await getLocalIpAddress();
     
@@ -354,25 +325,6 @@ function registerRoutes() {
         deleteFile
     );
 }
-
-// function startServer() {
-//     if (!fs.existsSync(UPLOAD_DIRECTORY)) {
-//         fs.mkdirSync(UPLOAD_DIRECTORY, {
-//             recursive: true
-//         });
-//     }
-
-//     loadExistingFiles();
-//     registerRoutes();
-
-//     const localIpAddress = getLocalIpAddress();
-
-//     app.listen(PORT, "0.0.0.0", () => {
-//         console.log(`Computer dashboard: http://localhost:${PORT}/`);
-//         console.log(`Phone dashboard: http://${localIpAddress}:${PORT}/${token}`);
-//         console.log(`Shared token: ${token}`);
-//     });
-// }
 
 async function startServer() {
     if (!fs.existsSync(UPLOAD_DIRECTORY)) {
