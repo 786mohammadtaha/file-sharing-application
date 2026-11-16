@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Sharing</title>
+</head>
+<body>
+    <h1>File Sharing</h1>
+
+    
+
+    <div>
+        <input type="file" id="filePicker">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <p id="uploadResult"></p>
+
+    <h2>Queue</h2>
+    <div id="fileQueue"></div>
+
+    <script>
+        const token = window.location.pathname.split("/")[1];
+        const deviceType = "phone";
+
+        const filePicker = document.getElementById("filePicker");
+        const sendButton = document.getElementById("sendButton");
+        const uploadResult = document.getElementById("uploadResult");
+        const fileQueueElement = document.getElementById("fileQueue");
+
+        let queueVersion = -1;
+
+        function getApiUrl(path) {
+            return `/${token}/api/files/${path}`;
+        }
+
+        function createTextElement(tagName, text) {
+            const element = document.createElement(tagName);
+            element.textContent = text;
+            return element;
+        }
+
+        function createFileRow(file) {
+            const row = document.createElement("div");
+
+            row.appendChild(createTextElement("span", file.id));
+            row.appendChild(document.createTextNode(" | "));
+            row.appendChild(createTextElement("span", file.name));
+            row.appendChild(document.createTextNode(" | "));
+            row.appendChild(createTextElement("span", file.time));
+            row.appendChild(document.createTextNode(" | "));
+            row.appendChild(createTextElement("span", file.date));
+            row.appendChild(document.createTextNode(" | "));
+
+            const downloadButton = createTextElement(
+                "button",
+                "Download"
+            );
+
+            downloadButton.addEventListener("click", () => {
+                downloadFile(file.id);
+            });
+
+            row.appendChild(downloadButton);
+
+            const deleteButton = createTextElement(
+                "button",
+                "Delete"
+            );
+
+            deleteButton.addEventListener("click", () => {
+                deleteFile(file.id);
+            });
+
+            row.appendChild(deleteButton);
+
+            return row;
+        }
+
+        function displayQueue(files) {
+            fileQueueElement.replaceChildren();
+
+            for (const file of files) {
+                fileQueueElement.appendChild(createFileRow(file));
+            }
+        }
+
+        async function uploadFile() {
+            const selectedFile = filePicker.files[0];
+
+            if (!selectedFile) {
+                uploadResult.textContent = "Please select a file.";
+                return;
+            }
+
+            uploadResult.textContent = "Uploading...";
+
+            try {
+                const uploadResponse = await fetch(
+                    getApiUrl(deviceType),
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/octet-stream",
+                            "X-File-Name": encodeURIComponent(
+                                selectedFile.name
+                            )
+                        },
+                        body: selectedFile
+                    }
+                );
+
+                const result = await uploadResponse.json();
+
+                uploadResult.textContent = result.message;
+
+                if (!uploadResponse.ok) {
+                    uploadResult.textContent =
+                        result.message || "Upload failed.";
+                }
+            } catch {
+                uploadResult.textContent = "Upload failed.";
+            }
+        }
+
+        function downloadFile(fileId) {
+            window.location.href = getApiUrl(
+                `${fileId}/download`
+            );
+        }
+
+        async function deleteFile(fileId) {
+            try {
+                const deleteResponse = await fetch(
+                    getApiUrl(fileId),
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                const result = await deleteResponse.json();
+
+                if (!deleteResponse.ok) {
+                    uploadResult.textContent = result.message;
+                }
+            } catch {
+                uploadResult.textContent = "Could not delete file.";
+            }
+        }
+
+        async function pollQueue() {
+            while (true) {
+                try {
+                    const pollResponse = await fetch(
+                        getApiUrl(
+                            `poll/${deviceType}?version=${queueVersion}`
+                        )
+                    );
+
+                    if (!pollResponse.ok) {
+                        await new Promise((resolve) => {
+                            setTimeout(resolve, 1000);
+                        });
+                        continue;
+                    }
+
+                    const result = await pollResponse.json();
+
+                    queueVersion = result.version;
+                    displayQueue(result.files);
+                } catch {
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 1000);
+                    });
+                }
+            }
+        }
+
+        sendButton.addEventListener("click", uploadFile);
+
+        
+
+        pollQueue();
+    </script>
+</body>
+</html>
